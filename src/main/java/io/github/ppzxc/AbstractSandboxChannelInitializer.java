@@ -1,20 +1,27 @@
 package io.github.ppzxc;
 
 import io.github.ppzxc.properties.InitializerProperties;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.SimpleUserEventChannelHandler;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
+import java.util.List;
 
 public abstract class AbstractSandboxChannelInitializer extends ChannelInitializer<SocketChannel> {
 
   private final InitializerProperties properties;
-  private final IdleStateUserEventHandler handler;
+  private final SimpleUserEventChannelHandler<IdleStateEvent> handler;
+  private final List<ChannelHandler> handlers;
 
-  protected AbstractSandboxChannelInitializer(InitializerProperties properties, IdleStateUserEventHandler handler) {
+  protected AbstractSandboxChannelInitializer(InitializerProperties properties,
+    SimpleUserEventChannelHandler<IdleStateEvent> handler, List<ChannelHandler> handlers) {
     this.properties = properties;
     this.handler = handler;
+    this.handlers = handlers;
   }
 
   @Override
@@ -23,6 +30,7 @@ public abstract class AbstractSandboxChannelInitializer extends ChannelInitializ
     pipeline.addLast(new LoggingHandler(properties.getLogLevel()));
     pipeline.addLast(getIdleStateHandler());
     pipeline.addLast(handler);
+    handlers.forEach(pipeline::addLast);
   }
 
   private IdleStateHandler getIdleStateHandler() {

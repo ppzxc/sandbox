@@ -9,7 +9,7 @@ import lombok.Setter;
 public class IdleStateProperties {
 
   private int readerIdleTime = 60;
-  private int writerIdleTime = 0;
+  private int writerIdleTime = 60;
   private int allIdleTime = 0;
   private TimeUnit timeUnit = TimeUnit.SECONDS;
 }

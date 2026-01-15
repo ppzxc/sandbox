@@ -10,6 +10,7 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -28,6 +29,16 @@ public abstract class AbstractChannelGateway implements ChannelGateway {
   public abstract ChannelMatcher channelMatcher(String id);
 
   @Override
+  public Stream<Channel> stream() {
+    return channelGroup.stream();
+  }
+
+  @Override
+  public int size() {
+    return channelGroup.size();
+  }
+
+  @Override
   public void add(Channel channel) {
     try {
       if (!channelGroup.add(channel)) {
@@ -37,6 +48,16 @@ public abstract class AbstractChannelGateway implements ChannelGateway {
       log.error("id={} message=Failed to add channel", channel.id(), e);
       throw new IllegalArgumentException("Failed to add channel: " + channel.id(), e);
     }
+  }
+
+  @Override
+  public boolean exist(Channel channel) {
+    return channelGroup.stream().anyMatch(innerChannel -> innerChannel.equals(channel));
+  }
+
+  @Override
+  public boolean exist(String id) {
+    return channelGroup.stream().anyMatch(channel -> channel.id().asShortText().equalsIgnoreCase(id));
   }
 
   @Override

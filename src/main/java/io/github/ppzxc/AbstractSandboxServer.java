@@ -6,16 +6,12 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.IoHandlerFactory;
-import io.netty.channel.MultiThreadIoEventLoopGroup;
-import io.netty.channel.epoll.EpollIoHandler;
+import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
-import io.netty.channel.nio.NioIoHandler;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.channel.uring.IoUringIoHandler;
-import io.netty.channel.uring.IoUringServerSocketChannel;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -28,8 +24,8 @@ public abstract class AbstractSandboxServer implements SandboxServer {
 
   protected AbstractSandboxServer(SandboxServerProperties properties, ChannelInitializer<SocketChannel> initializer) {
     this.properties = properties;
-    this.parentGroup = new MultiThreadIoEventLoopGroup(1, getHandlerFactory());
-    this.childGroup = new MultiThreadIoEventLoopGroup(getHandlerFactory());
+    this.parentGroup = createEventLoopGroup(1);
+    this.childGroup = createEventLoopGroup(0);
     this.bootstrap = new ServerBootstrap();
     this.bootstrap.group(parentGroup, childGroup)
       .channel(getChannelClass())
@@ -41,14 +37,12 @@ public abstract class AbstractSandboxServer implements SandboxServer {
       .childHandler(initializer);
   }
 
-  private IoHandlerFactory getHandlerFactory() {
+  private EventLoopGroup createEventLoopGroup(int nThreads) {
     switch (properties.getNativeTransport()) {
       case NIO:
-        return NioIoHandler.newFactory();
+        return new NioEventLoopGroup(nThreads);
       case EPOLL:
-        return EpollIoHandler.newFactory();
-      case IO_URING:
-        return IoUringIoHandler.newFactory();
+        return new EpollEventLoopGroup(nThreads);
       default:
         throw new IllegalStateException("Unexpected value: " + properties.getNativeTransport());
     }
@@ -60,8 +54,6 @@ public abstract class AbstractSandboxServer implements SandboxServer {
         return NioServerSocketChannel.class;
       case EPOLL:
         return EpollServerSocketChannel.class;
-      case IO_URING:
-        return IoUringServerSocketChannel.class;
       default:
         throw new IllegalStateException("Unexpected value: " + properties.getNativeTransport());
     }
@@ -71,7 +63,9 @@ public abstract class AbstractSandboxServer implements SandboxServer {
   public void startup() {
     try {
       ChannelFuture future = bootstrap.bind(properties.getHost(), properties.getPort()).sync();
-      future.channel().closeFuture().sync();
+      future.channel().closeFuture().addListener(closeFuture -> {
+        log.error("Server closed", closeFuture.cause());
+      });
     } catch (InterruptedException e) {
       log.error("Failed to start server", e);
       Thread.currentThread().interrupt();

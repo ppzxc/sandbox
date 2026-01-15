@@ -7,15 +7,14 @@ import io.netty.handler.timeout.IdleStateEvent;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class DefaultIdleStateUserEventHandler extends SimpleUserEventChannelHandler<IdleStateEvent> implements
-  IdleStateUserEventHandler {
+public class DefaultIdleStateUserEventHandler extends SimpleUserEventChannelHandler<IdleStateEvent> {
 
   @Override
   protected void eventReceived(ChannelHandlerContext ctx, IdleStateEvent evt) throws Exception {
     if (log.isTraceEnabled()) {
       log.trace("channel={} event={}", ctx.channel(), evt);
     }
-    if (evt == IdleStateEvent.READER_IDLE_STATE_EVENT) {
+    if (evt == IdleStateEvent.READER_IDLE_STATE_EVENT || evt == IdleStateEvent.WRITER_IDLE_STATE_EVENT) {
       ChannelFuture channelFuture = ctx.channel().closeFuture().sync();
       if (channelFuture.isSuccess()) {
         log.info("channel={} event={} message=closed", ctx.channel(), evt);
