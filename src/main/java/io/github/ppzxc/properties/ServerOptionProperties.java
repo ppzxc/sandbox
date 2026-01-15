@@ -13,4 +13,7 @@ public class ServerOptionProperties {
   private boolean tcpNoDelay = true;
   private boolean keepAlive = true;
   private PooledByteBufAllocator allocator = PooledByteBufAllocator.DEFAULT;
+  private int workerThreads = 0;
+  private long quietPeriod = 2;
+  private long shutdownTimeout = 15;
 }

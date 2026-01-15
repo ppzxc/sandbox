@@ -27,7 +27,7 @@ public class EchoSandboxChannelInitializer extends AbstractSandboxChannelInitial
 
   public EchoSandboxChannelInitializer(InitializerProperties properties, ChannelGateway gateway) {
     this(properties, new DefaultIdleStateUserEventHandler(),
-      Arrays.asList(new ByteBufLineEncoder(), new DelimiterBasedFrameDecoder(8192, Delimiters.lineDelimiter()),
+      java.util.Arrays.asList(new ByteBufLineEncoder(), new DelimiterBasedFrameDecoder(8192, Delimiters.lineDelimiter()),
         new SimpleChannelInboundHandler<ByteBuf>() {
           @Override
           public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -37,6 +37,7 @@ public class EchoSandboxChannelInitializer extends AbstractSandboxChannelInitial
 
           @Override
           public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            gateway.remove(ctx.channel());
             super.channelInactive(ctx);
           }
 

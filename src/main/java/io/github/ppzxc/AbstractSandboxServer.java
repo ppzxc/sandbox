@@ -2,6 +2,7 @@ package io.github.ppzxc;
 
 import io.github.ppzxc.properties.SandboxServerProperties;
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -12,6 +13,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
+import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -21,11 +24,12 @@ public abstract class AbstractSandboxServer implements SandboxServer {
   private final EventLoopGroup parentGroup;
   private final EventLoopGroup childGroup;
   private final ServerBootstrap bootstrap;
+  private Channel serverChannel;
 
   protected AbstractSandboxServer(SandboxServerProperties properties, ChannelInitializer<SocketChannel> initializer) {
     this.properties = properties;
     this.parentGroup = createEventLoopGroup(1);
-    this.childGroup = createEventLoopGroup(0);
+    this.childGroup = createEventLoopGroup(properties.getServerOption().getWorkerThreads());
     this.bootstrap = new ServerBootstrap();
     this.bootstrap.group(parentGroup, childGroup)
       .channel(getChannelClass())
@@ -43,6 +47,8 @@ public abstract class AbstractSandboxServer implements SandboxServer {
         return new NioEventLoopGroup(nThreads);
       case EPOLL:
         return new EpollEventLoopGroup(nThreads);
+      case IO_URING:
+        return new IOUringEventLoopGroup(nThreads);
       default:
         throw new IllegalStateException("Unexpected value: " + properties.getNativeTransport());
     }
@@ -54,6 +60,8 @@ public abstract class AbstractSandboxServer implements SandboxServer {
         return NioServerSocketChannel.class;
       case EPOLL:
         return EpollServerSocketChannel.class;
+      case IO_URING:
+        return IOUringServerSocketChannel.class;
       default:
         throw new IllegalStateException("Unexpected value: " + properties.getNativeTransport());
     }
@@ -63,8 +71,13 @@ public abstract class AbstractSandboxServer implements SandboxServer {
   public void startup() {
     try {
       ChannelFuture future = bootstrap.bind(properties.getHost(), properties.getPort()).sync();
-      future.channel().closeFuture().addListener(closeFuture -> {
-        log.error("Server closed", closeFuture.cause());
+      serverChannel = future.channel();
+      serverChannel.closeFuture().addListener(closeFuture -> {
+        if (closeFuture.isSuccess()) {
+          log.info("Server closed successfully");
+        } else {
+          log.error("Server closed with error", closeFuture.cause());
+        }
       });
     } catch (InterruptedException e) {
       log.error("Failed to start server", e);
@@ -74,13 +87,22 @@ public abstract class AbstractSandboxServer implements SandboxServer {
 
   @Override
   public void shutdownGracefully() {
+    if (serverChannel != null) {
+      try {
+        serverChannel.close().sync();
+      } catch (InterruptedException e) {
+        log.error("Failed to close server channel", e);
+      }
+    }
     try {
-      parentGroup.shutdownGracefully().sync();
+      parentGroup.shutdownGracefully(properties.getServerOption().getQuietPeriod(),
+        properties.getServerOption().getShutdownTimeout(), java.util.concurrent.TimeUnit.SECONDS).sync();
     } catch (InterruptedException e) {
       log.error("Failed to shutdown parent group", e);
     }
     try {
-      childGroup.shutdownGracefully().sync();
+      childGroup.shutdownGracefully(properties.getServerOption().getQuietPeriod(),
+        properties.getServerOption().getShutdownTimeout(), java.util.concurrent.TimeUnit.SECONDS).sync();
     } catch (InterruptedException e) {
       log.error("Failed to shutdown child group", e);
       Thread.currentThread().interrupt();
