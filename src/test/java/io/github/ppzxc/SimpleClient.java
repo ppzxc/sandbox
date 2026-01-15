@@ -29,7 +29,7 @@ public class SimpleClient {
     this(host, port, new byte[]{'\r', '\n'});
   }
 
-  public String sendMessage(String msg) {
+  public String send(String msg) {
     try {
       byte[] first = msg.getBytes(StandardCharsets.UTF_8);
       byte[] combined = new byte[first.length + delimiter.length];
@@ -37,6 +37,14 @@ public class SimpleClient {
       System.arraycopy(delimiter, 0, combined, first.length, delimiter.length);
       bufferedWriter.write(combined);
       bufferedWriter.flush();
+      return read();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public String read() {
+    try {
       return bufferedReader.readLine();
     } catch (IOException e) {
       throw new RuntimeException(e);

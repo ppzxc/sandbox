@@ -3,7 +3,9 @@ package io.github.ppzxc;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.ppzxc.properties.SandboxServerProperties;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,7 +41,7 @@ class DefaultSandboxServerTest {
     String expected = RandomStringUtils.generateRandomString(100);
 
     // when
-    client.sendMessage(expected);
+    client.send(expected);
     Channel actual = gateway.stream().findFirst()
       .orElseThrow(() -> new NullPointerException("channel not found"));
 
@@ -49,7 +51,6 @@ class DefaultSandboxServerTest {
     assertThat(gateway.exist(actual.id().asShortText())).isTrue();
   }
 
-
   @DisplayName("Sends message and receives echo")
   @Test
   void t1() {
@@ -57,9 +58,27 @@ class DefaultSandboxServerTest {
     String expected = RandomStringUtils.generateRandomString(100);
 
     // when
-    String actual = client.sendMessage(expected);
+    String actual = client.send(expected);
 
     // then
+    assertThat(actual).isEqualTo(expected);
+  }
+
+  @DisplayName("server side send message")
+  @Test
+  void t2() {
+    // given
+    String firstExpected = RandomStringUtils.generateRandomString(100);
+    String expected = RandomStringUtils.generateRandomString(100);
+
+    // when
+    String firstActual = client.send(firstExpected);
+    gateway.stream().findFirst().ifPresent(channel -> gateway.write(Unpooled.wrappedBuffer(expected.getBytes(
+      StandardCharsets.UTF_8)), channel.id().asShortText()));
+    String actual = client.read();
+
+    // then
+    assertThat(firstActual).isEqualTo(firstExpected);
     assertThat(actual).isEqualTo(expected);
   }
 }
