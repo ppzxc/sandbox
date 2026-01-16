@@ -1,4 +1,4 @@
-package io.github.ppzxc;
+package io.github.ppzxc.sandbox;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleUserEventChannelHandler;

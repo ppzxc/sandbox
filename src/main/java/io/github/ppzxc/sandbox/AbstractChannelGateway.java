@@ -1,7 +1,7 @@
-package io.github.ppzxc;
+package io.github.ppzxc.sandbox;
 
-import io.github.ppzxc.domain.ChannelInfo;
-import io.github.ppzxc.domain.Result;
+import io.github.ppzxc.sandbox.domain.ChannelInfo;
+import io.github.ppzxc.sandbox.domain.Result;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelId;
 import io.netty.channel.group.ChannelGroup;
@@ -11,8 +11,6 @@ import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.concurrent.GlobalEventExecutor;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,7 +39,7 @@ public abstract class AbstractChannelGateway implements ChannelGateway {
 
   @Override
   public Stream<Channel> stream() {
-    return channelGroup.stream();
+    return channelMap.values().stream();
   }
 
   @Override
@@ -51,15 +49,12 @@ public abstract class AbstractChannelGateway implements ChannelGateway {
 
   @Override
   public void add(Channel channel) {
-    try {
-      if (!channelGroup.add(channel)) {
-        throw new IllegalStateException("channel add state is false");
-      }
-      channelMap.put(channel.id().asShortText(), channel);
-    } catch (Exception e) {
-      log.error("id={} message=Failed to add channel", channel.id(), e);
-      throw new IllegalArgumentException("Failed to add channel: " + channel.id(), e);
+    if (channel == null) {
+      return;
     }
+    channelGroup.add(channel);
+    channelMap.put(channel.id().asShortText(), channel);
+    log.debug("id={} message=channel added", channel.id());
   }
 
   @Override
@@ -157,7 +152,7 @@ public abstract class AbstractChannelGateway implements ChannelGateway {
 
   @Override
   public void broadcastIf(Object message, Predicate<Channel> filter) {
-    ChannelMatcher matcher = channel -> filter.test(channel);
+    ChannelMatcher matcher = filter::test;
     channelGroup.writeAndFlush(message, matcher).addListener(future -> {
       if (future.isSuccess()) {
         log.info("message={} message=filtered broadcast success", message);
@@ -169,7 +164,7 @@ public abstract class AbstractChannelGateway implements ChannelGateway {
 
   @Override
   public void broadcastIf(Object message, Predicate<Channel> filter, Consumer<Result> callback) {
-    ChannelMatcher matcher = channel -> filter.test(channel);
+    ChannelMatcher matcher = filter::test;
     channelGroup.writeAndFlush(message, matcher).addListener(future -> {
       try {
         if (future.isSuccess()) {
@@ -198,23 +193,20 @@ public abstract class AbstractChannelGateway implements ChannelGateway {
     if (channel == null) {
       return false;
     }
-    channelMap.remove(channel.id().asShortText());
-    boolean removed = channelGroup.remove(channel);
-    if (removed) {
-      log.info("id={} message=channel removed", channel.id());
-    } else {
-      log.warn("id={} message=channel not found for removal", channel.id());
-    }
-    return removed;
+    String shortId = channel.id().asShortText();
+    boolean removedFromGroup = channelGroup.remove(channel);
+    Channel removedFromMap = channelMap.remove(shortId);
+    log.debug("id={} message=channel removed, group={}, map={}", shortId, removedFromGroup, removedFromMap != null);
+    return removedFromGroup || removedFromMap != null;
   }
 
   @Override
   public boolean remove(String id) {
-    Channel channel = channelMap.remove(id);
-    if (channel != null) {
-      return channelGroup.remove(channel);
+    if (id == null) {
+      return false;
     }
-    return false;
+    Channel channel = channelMap.get(id);
+    return remove(channel);
   }
 
   @Override

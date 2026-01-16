@@ -1,6 +1,6 @@
-package io.github.ppzxc;
+package io.github.ppzxc.sandbox;
 
-import io.github.ppzxc.properties.SandboxServerProperties;
+import io.github.ppzxc.sandbox.properties.SandboxServerProperties;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 

@@ -1,9 +1,9 @@
-package io.github.ppzxc;
+package io.github.ppzxc.sandbox;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import io.github.ppzxc.properties.SandboxServerProperties;
+import io.github.ppzxc.sandbox.properties.SandboxServerProperties;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import java.nio.charset.StandardCharsets;

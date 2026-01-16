@@ -1,4 +1,4 @@
-package io.github.ppzxc;
+package io.github.ppzxc.sandbox;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -16,6 +16,6 @@ public class ByteBufLineEncoder extends MessageToByteEncoder<ByteBuf> {
   @Override
   protected void encode(ChannelHandlerContext ctx, ByteBuf msg, ByteBuf out) {
     out.writeBytes(msg);
-    out.writeBytes(LINE_SEPARATOR.duplicate());
+    out.writeBytes(LINE_SEPARATOR.slice());
   }
 }

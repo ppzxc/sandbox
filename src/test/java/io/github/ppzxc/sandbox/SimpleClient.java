@@ -1,4 +1,4 @@
-package io.github.ppzxc;
+package io.github.ppzxc.sandbox;
 
 import java.io.BufferedReader;
 import java.io.IOException;

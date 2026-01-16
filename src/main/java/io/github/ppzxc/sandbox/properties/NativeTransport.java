@@ -1,4 +1,4 @@
-package io.github.ppzxc.properties;
+package io.github.ppzxc.sandbox.properties;
 
 public enum NativeTransport {
 

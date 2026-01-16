@@ -1,6 +1,6 @@
-package io.github.ppzxc;
+package io.github.ppzxc.sandbox;
 
-import io.github.ppzxc.properties.SandboxServerProperties;
+import io.github.ppzxc.sandbox.properties.SandboxServerProperties;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -72,6 +72,7 @@ public abstract class AbstractSandboxServer implements SandboxServer {
     try {
       ChannelFuture future = bootstrap.bind(properties.getHost(), properties.getPort()).sync();
       serverChannel = future.channel();
+      log.info("Server started on {}:{}", properties.getHost(), properties.getPort());
       serverChannel.closeFuture().addListener(closeFuture -> {
         if (closeFuture.isSuccess()) {
           log.info("Server closed successfully");
@@ -81,6 +82,7 @@ public abstract class AbstractSandboxServer implements SandboxServer {
       });
     } catch (InterruptedException e) {
       log.error("Failed to start server", e);
+      shutdownGracefully();
       Thread.currentThread().interrupt();
     }
   }
@@ -99,6 +101,7 @@ public abstract class AbstractSandboxServer implements SandboxServer {
         properties.getServerOption().getShutdownTimeout(), java.util.concurrent.TimeUnit.SECONDS).sync();
     } catch (InterruptedException e) {
       log.error("Failed to shutdown parent group", e);
+      Thread.currentThread().interrupt();
     }
     try {
       childGroup.shutdownGracefully(properties.getServerOption().getQuietPeriod(),

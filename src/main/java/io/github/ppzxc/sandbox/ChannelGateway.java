@@ -1,7 +1,7 @@
-package io.github.ppzxc;
+package io.github.ppzxc.sandbox;
 
-import io.github.ppzxc.domain.ChannelInfo;
-import io.github.ppzxc.domain.Result;
+import io.github.ppzxc.sandbox.domain.ChannelInfo;
+import io.github.ppzxc.sandbox.domain.Result;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelId;
 import java.util.List;

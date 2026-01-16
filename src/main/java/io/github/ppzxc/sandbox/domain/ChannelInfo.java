@@ -1,4 +1,4 @@
-package io.github.ppzxc.domain;
+package io.github.ppzxc.sandbox.domain;
 
 import lombok.Builder;
 import lombok.Getter;
