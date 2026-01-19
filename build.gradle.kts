@@ -1,14 +1,16 @@
 plugins {
-    id("java")
+    `java-library`
+    signing
+    jacoco
+    alias(libs.plugins.net.thebugmc.gradle.sonatype.central.portal.publisher)
 }
 
-group = "io.github.ppzxc"
-version = "1.0-SNAPSHOT"
+group = providers.gradleProperty("GROUP_NAME").get()
+version = providers.gradleProperty("VERSION_NAME").get()
 
 java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(8))
-    }
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 repositories {
@@ -16,21 +18,102 @@ repositories {
 }
 
 dependencies {
-    implementation("io.netty:netty-all:4.1.130.Final")
+    implementation(rootProject.libs.io.netty.all)
     implementation("io.netty.incubator:netty-incubator-transport-native-io_uring:0.0.26.Final:linux-x86_64")
-    annotationProcessor("org.projectlombok:lombok:1.18.42")
-    implementation("org.projectlombok:lombok:1.18.42")
-    implementation("org.slf4j:slf4j-api:1.7.36")
+    annotationProcessor(rootProject.libs.org.projectlombok)
+    implementation(rootProject.libs.org.projectlombok)
+    implementation(rootProject.libs.org.slf4j.api)
 
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation("org.assertj:assertj-core:3.22.0")
-    testImplementation("org.mockito:mockito-core:4.11.0")
-    testImplementation("org.mockito:mockito-junit-jupiter:4.11.0")
-    testImplementation("org.awaitility:awaitility:4.2.0")
+    testImplementation(platform(rootProject.libs.org.junit.bom))
+    testImplementation(rootProject.libs.org.junit.jupiter)
+    testImplementation(rootProject.libs.org.assertj.core)
+    testImplementation(rootProject.libs.org.mockito.core)
+    testImplementation(rootProject.libs.org.mockito.junit.jupiter)
+    testImplementation(rootProject.libs.org.awaitility)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-tasks.test {
+tasks.withType<Test> {
     useJUnitPlatform()
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.jacocoTestReport {
+    reports {
+        xml.required = true
+//        xml.outputLocation = layout.buildDirectory.dir("jacocoHtml")
+        csv.required = true
+//        csv.outputLocation = layout.buildDirectory.dir("jacocoHtml")
+        html.required = true
+//        html.outputLocation = layout.buildDirectory.dir("jacocoHtml")
+    }
+    finalizedBy(tasks.jacocoTestCoverageVerification)
+}
+
+tasks.jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = "CLASS"
+
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal.valueOf(0.90)
+            }
+        }
+    }
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+artifacts {
+    archives(tasks.named("javadocJar"))
+    archives(tasks.named("sourcesJar"))
+}
+
+signing {
+    val signingKey = providers.environmentVariable("GPG_SIGNING_KEY")
+    val signingPassphrase = providers.environmentVariable("GPG_SIGNING_PASSPHRASE")
+
+    if (signingKey.isPresent && signingPassphrase.isPresent) {
+        useInMemoryPgpKeys(signingKey.get(), signingPassphrase.get())
+        val extension = extensions.getByName("publishing") as PublishingExtension
+        sign(extension.publications)
+    }
+}
+
+centralPortal {
+    username = providers.environmentVariable("OSSRH_USERNAME").getOrElse("null")
+    password = providers.environmentVariable("OSSRH_PASSWORD").getOrElse("null")
+    pom {
+        group = providers.gradleProperty("GROUP_NAME").get()
+        name = providers.gradleProperty("ARTIFACT_NAME").get()
+        description = providers.gradleProperty("POM_DESCRIPTION").get()
+        packaging = "jar"
+        // `name = project.name`, `description = project.description` and `packaging = "jar"`
+        // are applied automatically, but you can override them here
+        url = providers.gradleProperty("POM_URL").get()
+        licenses {
+            license {
+                name = providers.gradleProperty("POM_LICENSE_NAME").get()
+                url = providers.gradleProperty("POM_LICENSE_URL").get()
+            }
+        }
+        developers {
+            developer {
+                id = providers.gradleProperty("POM_DEVELOPER_ID").get()
+                name = providers.gradleProperty("POM_DEVELOPER_NAME").get()
+                email = providers.gradleProperty("POM_DEVELOPER_EMAIL").get()
+                url = providers.gradleProperty("POM_DEVELOPER_URL").get()
+            }
+        }
+        scm {
+            url = providers.gradleProperty("POM_SCM_URL").get()
+            connection = providers.gradleProperty("POM_SCM_CONNECTION").get()
+            developerConnection = providers.gradleProperty("POM_SCM_DEV_CONNECTION").get()
+        }
+    }
 }
