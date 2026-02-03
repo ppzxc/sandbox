@@ -5,12 +5,14 @@ import io.github.ppzxc.sandbox.domain.Result;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelId;
 import io.netty.channel.group.ChannelGroup;
+import io.netty.channel.group.ChannelGroupException;
 import io.netty.channel.group.ChannelGroupFuture;
 import io.netty.channel.group.ChannelMatcher;
 import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.concurrent.GlobalEventExecutor;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -19,6 +21,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -73,7 +76,14 @@ public abstract class AbstractChannelGateway implements ChannelGateway {
       if (future.isSuccess()) {
         log.info("id={} message={} message=write success", id, message);
       } else {
-        log.error("id={} message={} message=write fail", id, message, future.cause());
+        if (future.cause() instanceof ChannelGroupException) {
+          ChannelGroupException e = (ChannelGroupException) future.cause();
+          for (Map.Entry<Channel, Throwable> entry : e) {
+              log.error("id={} message={} channel={} message=write fail, entry", id, message, entry.getKey(), entry.getValue());
+          }
+        } else {
+          log.error("id={} message={} message=write fail", id, message, future.cause());
+        }
       }
     });
   }
@@ -120,7 +130,7 @@ public abstract class AbstractChannelGateway implements ChannelGateway {
   }
 
   private void write(Object message, ChannelMatcher channelMatcher,
-    GenericFutureListener<? extends Future<? super Void>> listener) {
+      GenericFutureListener<? extends Future<? super Void>> listener) {
     channelGroup.writeAndFlush(message, channelMatcher).addListener(listener);
   }
 
@@ -247,15 +257,15 @@ public abstract class AbstractChannelGateway implements ChannelGateway {
   @Override
   public Map<String, ChannelInfo> getChannelInfoMap() {
     return channelMap.values().stream()
-      .map(channel -> ChannelInfo.builder()
-        .channelId(channel.id().asShortText())
-        .remoteAddress(channel.remoteAddress() != null ? channel.remoteAddress().toString() : "unknown")
-        .localAddress(channel.localAddress() != null ? channel.localAddress().toString() : "unknown")
-        .connectedTime(System.currentTimeMillis())
-        .active(channel.isActive())
-        .writable(channel.isWritable())
-        .build())
-      .collect(Collectors.toMap(ChannelInfo::getChannelId, info -> info));
+        .map(channel -> ChannelInfo.builder()
+            .channelId(channel.id().asShortText())
+            .remoteAddress(channel.remoteAddress() != null ? channel.remoteAddress().toString() : "unknown")
+            .localAddress(channel.localAddress() != null ? channel.localAddress().toString() : "unknown")
+            .connectedTime(System.currentTimeMillis())
+            .active(channel.isActive())
+            .writable(channel.isWritable())
+            .build())
+        .collect(Collectors.toMap(ChannelInfo::getChannelId, info -> info));
   }
 
   @Override
